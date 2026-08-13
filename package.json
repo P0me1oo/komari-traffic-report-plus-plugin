@@ -1,0 +1,24 @@
+{
+  "name": "komari-plugin-traffic-report",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Traffic Report Komari 插件",
+  "scripts": {
+    "check": "komari-plugin-dev check",
+    "build": "komari-plugin-dev build",
+    "pack": "komari-plugin-dev pack",
+    "typecheck": "tsc --noEmit",
+    "plugin:install": "komari-plugin-dev install --enable",
+    "dev": "komari-plugin-dev dev"
+  },
+  "komari": {
+    "source": "src/plugin.ts"
+  },
+  "dependencies": {
+    "@komari-monitor/plugin-sdk": "1.4.3"
+  },
+  "devDependencies": {
+    "@komari-monitor/plugin-dev": "1.4.3",
+    "typescript": "^5.0.0"
+  }
+}

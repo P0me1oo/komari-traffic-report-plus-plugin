@@ -1,0 +1,155 @@
+{
+  "$schema": "./node_modules/@komari-monitor/plugin-sdk/schema/komari-plugin.schema.json",
+  "name": {
+    "zh-CN": "流量定期报告",
+    "zh-TW": "流量定期報告",
+    "en": "Scheduled Traffic Reports"
+  },
+  "short": "traffic-report",
+  "icon": "assets/traffic-report-icon.svg",
+  "komari": ">=1.4.3",
+  "description": {
+    "zh-CN": "按自定义计划发送节点流量日报、周报和月报。",
+    "zh-TW": "依自訂排程發送節點流量日報、週報和月報。",
+    "en": "Send daily, weekly, and monthly traffic reports for selected nodes on custom schedules."
+  },
+  "version": "0.1.0",
+  "entry": "script.js",
+  "author": "Komari Monitor",
+  "permissions": {
+    "allowSystemRPC": true
+  },
+  "configuration": {
+    "type": "managed",
+    "data": [
+      {
+        "key": "all_nodes",
+        "name": {
+          "zh-CN": "为全部节点启用",
+          "zh-TW": "為全部節點啟用",
+          "en": "Enable for all nodes"
+        },
+        "type": "switch",
+        "default": false,
+        "help": {
+          "zh-CN": "开启后忽略下方的节点选择，始终包含全部节点。",
+          "zh-TW": "開啟後忽略下方的節點選擇，始終包含全部節點。",
+          "en": "When enabled, the node selection below is ignored and all nodes are always included."
+        }
+      },
+      {
+        "key": "nodes",
+        "name": {
+          "zh-CN": "选择节点",
+          "zh-TW": "選擇節點",
+          "en": "Select nodes"
+        },
+        "type": "nodes",
+        "default": "[]",
+        "help": {
+          "zh-CN": "选择要统计并发送报告的节点。",
+          "zh-TW": "選擇要統計並發送報告的節點。",
+          "en": "Select the nodes to include in reports."
+        }
+      },
+      {
+        "key": "template",
+        "name": {
+          "zh-CN": "通知模板",
+          "zh-TW": "通知範本",
+          "en": "Notification template"
+        },
+        "type": "richtext",
+        "default": "",
+        "help": {
+          "zh-CN": "留空使用系统通知模板；支持 {{period}}、{{start}}、{{end}}、{{message}}、{{nodes}}、{{event}}、{{emoji}}、{{time}}。",
+          "zh-TW": "留空使用系統通知範本；支援 {{period}}、{{start}}、{{end}}、{{message}}、{{nodes}}、{{event}}、{{emoji}}、{{time}}。",
+          "en": "Leave empty to use the system notification template. Supported placeholders: {{period}}, {{start}}, {{end}}, {{message}}, {{nodes}}, {{event}}, {{emoji}}, {{time}}."
+        }
+      },
+      {
+        "name": {
+          "zh-CN": "<strong>数据保留要求：</strong>请将数据库中 <code>traffic.up</code> 和 <code>traffic.down</code> 的保存时间调整到足够长：日报至少 1 天，周报至少 7 天，月报至少 31 天。保存时间过短会导致报告漏数据。",
+          "zh-TW": "<strong>資料保留要求：</strong>請將資料庫中 <code>traffic.up</code> 和 <code>traffic.down</code> 的保存時間調整到足夠長：日報至少 1 天、週報至少 7 天、月報至少 31 天。保存時間過短會導致報告遺漏資料。",
+          "en": "<strong>Data retention:</strong> Keep <code>traffic.up</code> and <code>traffic.down</code> for at least 1 day for daily reports, 7 days for weekly reports, and 31 days for monthly reports. Shorter retention can cause missing data."
+        },
+        "type": "textbox"
+      },
+      {
+        "key": "daily_enabled",
+        "name": {
+          "zh-CN": "启用日报",
+          "zh-TW": "啟用日報",
+          "en": "Enable daily reports"
+        },
+        "type": "switch",
+        "default": true
+      },
+      {
+        "key": "daily_cron",
+        "name": {
+          "zh-CN": "日报发送时间",
+          "zh-TW": "日報發送時間",
+          "en": "Daily report schedule"
+        },
+        "type": "string",
+        "default": "0 9 * * *",
+        "help": {
+          "zh-CN": "默认每天早上 9 点。",
+          "zh-TW": "預設每天早上 9 點。",
+          "en": "Defaults to 9:00 AM every day."
+        }
+      },
+      {
+        "key": "weekly_enabled",
+        "name": {
+          "zh-CN": "启用周报",
+          "zh-TW": "啟用週報",
+          "en": "Enable weekly reports"
+        },
+        "type": "switch",
+        "default": false
+      },
+      {
+        "key": "weekly_cron",
+        "name": {
+          "zh-CN": "周报发送时间",
+          "zh-TW": "週報發送時間",
+          "en": "Weekly report schedule"
+        },
+        "type": "string",
+        "default": "0 9 * * 1",
+        "help": {
+          "zh-CN": "默认每周一早上 9 点。",
+          "zh-TW": "預設每週一早上 9 點。",
+          "en": "Defaults to Monday at 9:00 AM."
+        }
+      },
+      {
+        "key": "monthly_enabled",
+        "name": {
+          "zh-CN": "启用月报",
+          "zh-TW": "啟用月報",
+          "en": "Enable monthly reports"
+        },
+        "type": "switch",
+        "default": false
+      },
+      {
+        "key": "monthly_cron",
+        "name": {
+          "zh-CN": "月报发送时间",
+          "zh-TW": "月報發送時間",
+          "en": "Monthly report schedule"
+        },
+        "type": "string",
+        "default": "0 9 1 * *",
+        "help": {
+          "zh-CN": "默认每月 1 号早上 9 点。",
+          "zh-TW": "預設每月 1 號早上 9 點。",
+          "en": "Defaults to the 1st day of each month at 9:00 AM."
+        }
+      }
+    ]
+  }
+}
