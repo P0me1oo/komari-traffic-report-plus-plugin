@@ -15,7 +15,7 @@
   },
   "version": "0.2.0",
   "entry": "script.js",
-  "author": "Komari Monitor",
+  "author": "P0me1oo",
   "permissions": {
     "allowSystemRPC": true
   },
