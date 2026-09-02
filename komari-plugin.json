@@ -13,7 +13,7 @@
     "zh-TW": "依自訂排程發送節點流量日報、週報和月報。",
     "en": "Send daily, weekly, and monthly traffic reports for selected nodes on custom schedules."
   },
-  "version": "0.1.0",
+  "version": "0.2.0",
   "entry": "script.js",
   "author": "Komari Monitor",
   "permissions": {
@@ -53,6 +53,52 @@
         }
       },
       {
+        "key": "sort_order",
+        "name": {
+          "zh-CN": "节点排序",
+          "zh-TW": "節點排序",
+          "en": "Node order"
+        },
+        "type": "select",
+        "options": "面板顺序,流量排序",
+        "default": "面板顺序",
+        "help": {
+          "zh-CN": "面板顺序：与管理面板中的节点顺序一致；流量排序：按周期内总流量从高到低排列，无数据的节点排在最后。",
+          "zh-TW": "面板順序：與管理面板中的節點順序一致；流量排序：按週期內總流量從高到低排列，無資料的節點排在最後。",
+          "en": "Panel order keeps the admin panel ordering; Traffic order sorts by total traffic in the period, descending, with nodes without data placed last."
+        }
+      },
+      {
+        "key": "show_detail",
+        "name": {
+          "zh-CN": "显示上下行明细",
+          "zh-TW": "顯示上下行明細",
+          "en": "Show upload/download detail"
+        },
+        "type": "switch",
+        "default": true,
+        "help": {
+          "zh-CN": "在节点行和合计行中显示上传、下载分项流量，关闭后仅显示总流量。",
+          "zh-TW": "在節點行和合計行中顯示上傳、下載分項流量，關閉後僅顯示總流量。",
+          "en": "Show upload and download breakdown in each line. Turn off to show total traffic only."
+        }
+      },
+      {
+        "key": "show_peak",
+        "name": {
+          "zh-CN": "显示峰值带宽",
+          "zh-TW": "顯示峰值頻寬",
+          "en": "Show peak bandwidth"
+        },
+        "type": "switch",
+        "default": true,
+        "help": {
+          "zh-CN": "在节点行和合计行中显示统计周期内的上下行峰值速率，数据来自 net.out.rate 和 net.in.rate。",
+          "zh-TW": "在節點行和合計行中顯示統計週期內的上下行峰值速率，資料來自 net.out.rate 和 net.in.rate。",
+          "en": "Show peak upload/download rates within the report period, based on net.out.rate and net.in.rate."
+        }
+      },
+      {
         "key": "template",
         "name": {
           "zh-CN": "通知模板",
@@ -62,16 +108,16 @@
         "type": "richtext",
         "default": "",
         "help": {
-          "zh-CN": "留空使用系统通知模板；支持 {{period}}、{{start}}、{{end}}、{{message}}、{{nodes}}、{{event}}、{{emoji}}、{{time}}。",
-          "zh-TW": "留空使用系統通知範本；支援 {{period}}、{{start}}、{{end}}、{{message}}、{{nodes}}、{{event}}、{{emoji}}、{{time}}。",
-          "en": "Leave empty to use the system notification template. Supported placeholders: {{period}}, {{start}}, {{end}}, {{message}}, {{nodes}}, {{event}}, {{emoji}}, {{time}}."
+          "zh-CN": "留空使用系统通知模板；支持 {{period}}、{{period_short}}、{{start}}、{{end}}、{{message}}、{{nodes}}、{{total}}、{{total_up}}、{{total_down}}、{{node_count}}、{{event}}、{{emoji}}、{{time}}。",
+          "zh-TW": "留空使用系統通知範本；支援 {{period}}、{{period_short}}、{{start}}、{{end}}、{{message}}、{{nodes}}、{{total}}、{{total_up}}、{{total_down}}、{{node_count}}、{{event}}、{{emoji}}、{{time}}。",
+          "en": "Leave empty to use the system notification template. Supported placeholders: {{period}}, {{period_short}}, {{start}}, {{end}}, {{message}}, {{nodes}}, {{total}}, {{total_up}}, {{total_down}}, {{node_count}}, {{event}}, {{emoji}}, {{time}}."
         }
       },
       {
         "name": {
-          "zh-CN": "<strong>数据保留要求：</strong>请将数据库中 <code>traffic.up</code> 和 <code>traffic.down</code> 的保存时间调整到足够长：日报至少 1 天，周报至少 7 天，月报至少 31 天。保存时间过短会导致报告漏数据。",
-          "zh-TW": "<strong>資料保留要求：</strong>請將資料庫中 <code>traffic.up</code> 和 <code>traffic.down</code> 的保存時間調整到足夠長：日報至少 1 天、週報至少 7 天、月報至少 31 天。保存時間過短會導致報告遺漏資料。",
-          "en": "<strong>Data retention:</strong> Keep <code>traffic.up</code> and <code>traffic.down</code> for at least 1 day for daily reports, 7 days for weekly reports, and 31 days for monthly reports. Shorter retention can cause missing data."
+          "zh-CN": "<strong>数据保留要求：</strong>请将数据库中 <code>traffic.up</code>、<code>traffic.down</code> 以及 <code>net.out.rate</code>、<code>net.in.rate</code> 的保存时间调整到足够长：日报至少 1 天，周报至少 7 天，月报至少 31 天。保存时间过短会导致报告漏数据或峰值偏低。",
+          "zh-TW": "<strong>資料保留要求：</strong>請將資料庫中 <code>traffic.up</code>、<code>traffic.down</code> 以及 <code>net.out.rate</code>、<code>net.in.rate</code> 的保存時間調整到足夠長：日報至少 1 天、週報至少 7 天、月報至少 31 天。保存時間過短會導致報告遺漏資料或峰值偏低。",
+          "en": "<strong>Data retention:</strong> Keep <code>traffic.up</code>, <code>traffic.down</code>, <code>net.out.rate</code>, and <code>net.in.rate</code> for at least 1 day for daily reports, 7 days for weekly reports, and 31 days for monthly reports. Shorter retention can cause missing data or understated peaks."
         },
         "type": "textbox"
       },

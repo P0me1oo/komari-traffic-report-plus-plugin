@@ -441,6 +441,7 @@
   // src/plugin.ts
   var import_plugin_sdk = __toESM(require_src());
   var TRAFFIC_METRICS = ["traffic.up", "traffic.down"];
+  var SPEED_METRICS = ["net.out.rate", "net.in.rate"];
   var DEFAULT_CONFIG = {
     daily_enabled: true,
     daily_cron: "0 9 * * *",
@@ -516,13 +517,39 @@
     } while (amount >= 1024 && unitIndex < units.length - 1);
     return `${amount.toFixed(2)} ${units[unitIndex]}`;
   }
-  function formatTraffic(up, down) {
-    return `\u2191 ${formatBytes(up)} + \u2193 ${formatBytes(down)} = ${formatBytes(up + down)}`;
+  function formatRate(bytesPerSecond) {
+    return `${formatBytes(bytesPerSecond)}/s`;
+  }
+  function formatShortDate(date) {
+    const pad = (value) => String(value).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  }
+  function formatPeriodTitle(kind, start, end) {
+    if (kind === "daily") return formatShortDate(start);
+    if (kind === "monthly") {
+      const pad = (value) => String(value).padStart(2, "0");
+      return `${start.getFullYear()}-${pad(start.getMonth() + 1)}`;
+    }
+    const lastDay = new Date(end.getTime() - 24 * 60 * 60 * 1e3);
+    return `${formatShortDate(start)} ~ ${formatShortDate(lastDay)}`;
+  }
+  function formatUsageLine(name, usage, showDetail, showPeak) {
+    const details = [];
+    if (showDetail) {
+      details.push(`\u2191 ${formatBytes(usage.up)} / \u2193 ${formatBytes(usage.down)}`);
+    }
+    if (showPeak) {
+      details.push(
+        `\u5CF0\u503C \u2191 ${formatRate(usage.peakUp)} \u2193 ${formatRate(usage.peakDown)}`
+      );
+    }
+    const detail = details.length > 0 ? `\uFF08${details.join("\uFF0C")}\uFF09` : "";
+    return `${name}\uFF1A${formatBytes(usage.up + usage.down)}${detail}`;
   }
   function reportLabel(kind) {
-    if (kind === "daily") return "Daily report";
-    if (kind === "weekly") return "Weekly report";
-    return "Monthly report";
+    if (kind === "daily") return "\u6D41\u91CF\u65E5\u62A5";
+    if (kind === "weekly") return "\u6D41\u91CF\u5468\u62A5";
+    return "\u6D41\u91CF\u6708\u62A5";
   }
   function eventName(kind) {
     if (kind === "daily") return "DReport";
@@ -551,16 +578,25 @@
       (left, right) => (nodeMap.get(left)?.weight ?? 0) - (nodeMap.get(right)?.weight ?? 0)
     );
   }
-  async function queryTraffic(nodeIds, start, end) {
+  async function queryTraffic(nodeIds, start, end, includeSpeed) {
+    const metricKeys = [
+      ...TRAFFIC_METRICS,
+      ...includeSpeed ? SPEED_METRICS : []
+    ];
+    const aggregationByMetric = {
+      "traffic.up": "sum",
+      "traffic.down": "sum"
+    };
+    if (includeSpeed) {
+      aggregationByMetric["net.out.rate"] = "max";
+      aggregationByMetric["net.in.rate"] = "max";
+    }
     const response = await import_plugin_sdk.server.call("public:queryMetrics", {
-      metric_keys: [...TRAFFIC_METRICS],
+      metric_keys: metricKeys,
       entity_ids: nodeIds,
       start: start.toISOString(),
       end: new Date(end.getTime() - 1).toISOString(),
-      aggregation_by_metric: {
-        "traffic.up": "sum",
-        "traffic.down": "sum"
-      },
+      aggregation_by_metric: aggregationByMetric,
       max_points: 1e4
     });
     const result = /* @__PURE__ */ new Map();
@@ -569,52 +605,89 @@
       const current = result.get(series.entity_id) ?? {
         up: 0,
         down: 0,
+        peakUp: 0,
+        peakDown: 0,
         hasData: false
       };
-      if ((series.count ?? 0) > 0) current.hasData = true;
+      const isTraffic = series.metric_key === "traffic.up" || series.metric_key === "traffic.down";
+      if (isTraffic && (series.count ?? 0) > 0) current.hasData = true;
       for (const point of series.points ?? []) {
         const value = point.value;
         if (value === null) continue;
-        current.hasData = true;
-        if (series.metric_key === "traffic.up") current.up += value;
-        if (series.metric_key === "traffic.down") current.down += value;
+        switch (series.metric_key) {
+          case "traffic.up":
+            current.up += value;
+            current.hasData = true;
+            break;
+          case "traffic.down":
+            current.down += value;
+            current.hasData = true;
+            break;
+          case "net.out.rate":
+            current.peakUp = Math.max(current.peakUp, value);
+            break;
+          case "net.in.rate":
+            current.peakDown = Math.max(current.peakDown, value);
+            break;
+        }
       }
       result.set(series.entity_id, current);
     }
     return result;
   }
+  function nodeTrafficTotal(traffic, uuid) {
+    const usage = traffic.get(uuid);
+    return usage?.hasData ? usage.up + usage.down : -1;
+  }
   async function sendReport(kind) {
     const config = await import_plugin_sdk.server.getConfig();
     const nodeMap = await getNodeMap();
-    const nodeIds = sortNodeIdsByWeight(
+    const weightOrderedIds = sortNodeIdsByWeight(
       asBoolean(config.all_nodes, false) ? [...nodeMap.keys()] : selectedNodeIds(config.nodes),
       nodeMap
     );
-    if (nodeIds.length === 0) return;
+    if (weightOrderedIds.length === 0) return;
+    const showDetail = asBoolean(config.show_detail, true);
+    const showPeak = asBoolean(config.show_peak, true);
+    const sortByTraffic = asString(config.sort_order, "\u9762\u677F\u987A\u5E8F").includes(
+      "\u6D41\u91CF"
+    );
     const { start, end } = periodRange(kind);
-    const traffic = await queryTraffic(nodeIds, start, end);
+    const traffic = await queryTraffic(weightOrderedIds, start, end, showPeak);
+    const nodeIds = sortByTraffic ? [...weightOrderedIds].sort(
+      (left, right) => nodeTrafficTotal(traffic, right) - nodeTrafficTotal(traffic, left)
+    ) : weightOrderedIds;
     const lines = [];
     let totalUp = 0;
     let totalDown = 0;
+    let totalPeakUp = 0;
+    let totalPeakDown = 0;
     for (const uuid of nodeIds) {
       const node = nodeMap.get(uuid);
       const usage = traffic.get(uuid);
       const name = node?.name || uuid;
       if (!usage?.hasData) {
-        lines.push(`\u2022 ${name}\uFF1ANaN`);
+        lines.push(`${name}\uFF1A\u6682\u65E0\u6570\u636E`);
         continue;
       }
       totalUp += usage.up;
       totalDown += usage.down;
-      lines.push(`\u2022 ${name}\uFF1A${formatTraffic(usage.up, usage.down)}`);
+      totalPeakUp = Math.max(totalPeakUp, usage.peakUp);
+      totalPeakDown = Math.max(totalPeakDown, usage.peakDown);
+      lines.push(formatUsageLine(name, usage, showDetail, showPeak));
     }
+    const totalUsage = {
+      up: totalUp,
+      down: totalDown,
+      peakUp: totalPeakUp,
+      peakDown: totalPeakDown,
+      hasData: true
+    };
     const message = [
-      reportLabel(kind),
-      `${formatDate(start)} ~ ${formatDate(end)}`,
+      `${reportLabel(kind)} \xB7 ${formatPeriodTitle(kind, start, end)}`,
+      formatUsageLine("\u5408\u8BA1", totalUsage, showDetail, showPeak),
       "",
-      ...lines,
-      "",
-      `Total:${formatTraffic(totalUp, totalDown)}`
+      ...lines
     ].join("\n");
     const event = eventName(kind);
     const emoji = eventEmoji(kind);
@@ -622,10 +695,15 @@
     const template = asString(config.template, "").trim();
     const renderedMessage = template ? replaceTemplate(template, {
       period: reportLabel(kind),
+      period_short: formatPeriodTitle(kind, start, end),
       start: formatDate(start),
       end: formatDate(end),
       message,
       nodes: lines.join("\n"),
+      total: formatBytes(totalUp + totalDown),
+      total_up: formatBytes(totalUp),
+      total_down: formatBytes(totalDown),
+      node_count: String(nodeIds.length),
       event,
       emoji,
       time

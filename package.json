@@ -1,6 +1,6 @@
 {
   "name": "komari-plugin-traffic-report",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Traffic Report Komari 插件",
   "scripts": {
